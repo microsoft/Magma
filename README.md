@@ -1,4 +1,4 @@
-<div align="center">
+<div align="center"> new change 
 <h2>🤖 Magma: A Foundation Model for Multimodal AI Agents</h2>
 
 [Jianwei Yang](https://jwyang.github.io/)<sup>*</sup><sup>1</sup><sup>†</sup>&nbsp;
