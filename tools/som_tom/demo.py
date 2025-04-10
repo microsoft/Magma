@@ -14,7 +14,7 @@ from cotracker.utils.visualizer import Visualizer
 from data.utils.visual_trace import visual_trace
 from data.utils.som_tom import som_prompting, tom_prompting
 
-device = 'cuda'
+device = 'cuda:1'
 grid_size = 15
 cotracker = torch.hub.load("facebookresearch/co-tracker", "cotracker3_offline").to(device)
 visual_trace_folder = "./tools/som_tom/videos"
@@ -82,39 +82,49 @@ def som_tom(video, pred_tracks, pred_visibility, item={}, epsilon=2):
     video = torch.stack([torchvision.transforms.ToTensor()(img) for img in images])[None].float()*255    
     _ = vis.visualize(video, pos_tracks, pos_visibility, filename=f"som_tom")
 
-video_path = "assets/videos/tom_orig_sample.mp4"
+video_path = "assets/videos/clippedUE_h264.mp4"
 # load video
 cap = cv2.VideoCapture(video_path)
 cap.set(cv2.CAP_PROP_POS_FRAMES, 20)
 # get number of frames in cap
 num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 images = []
+frame_count = 0
+max_frames = 120  # Or another suitable number
+
 while True:
     ret, frame = cap.read()
     # if reach stop frame then break
-    if not ret:
+    if not ret or frame_count >= max_frames:
         break
-    # convert to RGB
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    images.append(frame)
+        
+    # Convert BGR to RGB (OpenCV uses BGR by default)
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    images.append(frame_rgb)
+    frame_count += 1
 
 cap.release()
 
-images = [Image.fromarray(img) for img in images]
-# resize images to height=512
-images = [img.resize((int(img.width * 512 / img.height), 512)) for img in images]
+# Add error checking before processing
+if len(images) == 0:
+    print("Error: No frames were read from the video")
+    # Handle the error (e.g., exit or use default image)
+else:
+    images = [Image.fromarray(img) for img in images]
+    # resize images to height=512
+    images = [img.resize((int(img.width * 512 / img.height), 512)) for img in images]
 
-video = torch.stack([torchvision.transforms.ToTensor()(img) for img in images])[None].float()*255    
-video = video.to(device)
+    video = torch.stack([torchvision.transforms.ToTensor()(img) for img in images])[None].float()*255    
+    video = video.to(device)
 
-# Alg2 L1: Extract visual trace
-pred_tracks, pred_visibility = cotracker(video, grid_size=grid_size) # B T N 2,  B T N 1
-_ = vis.visualize(
-    video.cpu(),
-    pred_tracks,
-    pred_visibility,
-    query_frame=0,
-    filename='orig_trace',
-)        
+    # Alg2 L1: Extract visual trace
+    pred_tracks, pred_visibility = cotracker(video, grid_size=grid_size) # B T N 2,  B T N 1
+    _ = vis.visualize(
+        video.cpu(),
+        pred_tracks,
+        pred_visibility,
+        query_frame=0,
+        filename='orig_trace',
+    )        
 
-som_tom(video.cpu(), pred_tracks, pred_visibility)
+    som_tom(video.cpu(), pred_tracks, pred_visibility)
