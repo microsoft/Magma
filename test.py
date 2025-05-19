@@ -11,7 +11,7 @@ from magma.modeling_magma import MagmaForCausalLM
 dtype = torch.bfloat16
 model = MagmaForCausalLM.from_pretrained("microsoft/Magma-8B", trust_remote_code=True, torch_dtype=dtype)
 processor = MagmaProcessor.from_pretrained("microsoft/Magma-8B", trust_remote_code=True)
-model.to("cuda:0")
+model.to("cuda:1")
 
 # Inference
 image = Image.open("./assets/images/unreal_temple.jpg").convert("RGB")
