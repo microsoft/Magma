@@ -1,5 +1,5 @@
 # data_configs/mind2web_som_finetune.yaml
 DATA_PATH:
-  - "/mnt/welles/scratch/datasets/Magma-Mind2Web-SoM/dataset_info.json"
+  - "/mnt/welles/scratch/datasets/Magma-Mind2Web-SoM/state.json"
 IMAGE_FOLDER:
-  - "/mnt/welles/scratch/datasets/Magma-Mind2Web-SoM/"
+  - "/mnt/welles/scratch/datasets/Magma-Mind2Web-SoM"
