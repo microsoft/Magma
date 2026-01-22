@@ -18,7 +18,7 @@ dependencies = [
     "pytorch-lightning>=1.0.8",
     "transformers>=4.49.0",
     "tokenizers>=0.15.0",
-    "sentencepiece==0.1.99",
+    "sentencepiece==0.2.1",
     "shortuuid",
     "accelerate==0.34.2",
     "peft==0.4.0",
