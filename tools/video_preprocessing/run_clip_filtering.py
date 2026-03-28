@@ -66,8 +66,10 @@ class VideoDataset(Dataset):
         self.filtered = args.filtered
         self.img_processor = img_processor
         self.to_pil = ToPILImage()
-        self.vid2anns = pickle.load(open(args.ann_path, 'rb')) # a nested map from video to language annotations. For example, the keys at the first level will be the video and those at the second level are segments (denoted by start and end times). The values are the language annotations.
-        self.all_traces = pickle.load(open(args.trace_path, 'rb'))
+        self.vid2anns = # SECURITY WARNING: pickle.loads is unsafe with untrusted data. Consider using json.loads() or msgpack.
+pickle.load(open(args.ann_path, 'rb')) # a nested map from video to language annotations. For example, the keys at the first level will be the video and those at the second level are segments (denoted by start and end times). The values are the language annotations.
+        self.all_traces = # SECURITY WARNING: pickle.loads is unsafe with untrusted data. Consider using json.loads() or msgpack.
+pickle.load(open(args.trace_path, 'rb'))
 
     def __len__(self):
         return len(self.all_traces)
