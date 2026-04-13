@@ -1,13 +1,11 @@
-import torch
-from ultralytics import YOLO
 from PIL import Image
-import io
-import base64
+
 device = 'cuda'
 
-from PIL import Image, ImageDraw, ImageFont
-import numpy as np
 import networkx as nx
+import numpy as np
+from PIL import ImageDraw, ImageFont
+
 # import cv2
 
 font_path = "agents/ui_agent/util/arial.ttf"

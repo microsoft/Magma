@@ -1,8 +1,7 @@
-from typing import List, Optional, Union, Tuple
+from typing import List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
-
 from supervision.detection.core import Detections
 from supervision.draw.color import Color, ColorPalette
 

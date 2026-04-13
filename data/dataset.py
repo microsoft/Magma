@@ -1,34 +1,25 @@
-import os
-import copy
-from dataclasses import dataclass, field
-import json
-import logging
-import pathlib
-from typing import Dict, Optional, Sequence, List
-import pandas as pd
-import torch
-import deepspeed
-import glob
-import pandas as pd
-import transformers
-import tokenizers
-import random
-import re
-import cv2
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.data import DataLoader, Dataset, DistributedSampler, IterableDataset
-import torch.distributed as dist
 import collections
+import copy
+import os
+import random
+from typing import Dict, List, Sequence
+
+import torch
+import torch.distributed as dist
 from PIL import Image
-from io import BytesIO
-from data.utils.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
-from magma.image_processing_magma import MagmaImageProcessor
+from torch.utils.data import DataLoader, Dataset, DistributedSampler
+
+from data.utils.constants import (
+    DEFAULT_IM_END_TOKEN,
+    DEFAULT_IM_START_TOKEN,
+    DEFAULT_IMAGE_TOKEN,
+    IGNORE_INDEX,
+)
 from magma.processing_magma import MagmaProcessor
-from .data_item import DataItem
+
 from . import *
-from PIL import Image, ImageFile
-from PIL import ImageDraw, ImageFont
-from typing import List, Optional, Union
+from .data_item import DataItem
+
 
 def preprocess_multimodal(
     sources: Sequence[str],

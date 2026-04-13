@@ -5,16 +5,17 @@ Factory class for initializing Open-X RLDS-backed datasets, given specified data
 exports individual functions for clear control flow.
 """
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple, Type, Dict, Sequence
-from dataclasses import dataclass, field
+from typing import Dict, Sequence, Tuple
 
+import torch
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizerBase
 
-import torch
 from .action_tokenizer import ActionTokenizer
 from .datasets import EpisodicRLDSDataset, RLDSBatchTransform, RLDSDataset
+
 
 @dataclass
 class PaddedCollatorForLanguageModeling:

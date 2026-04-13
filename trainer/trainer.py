@@ -1,18 +1,17 @@
 import os
+from typing import List, Optional
+
 import torch
-
-from torch.utils.data import Sampler
 from torch.cuda import synchronize
-
+from torch.utils.data import Sampler
 from transformers import Trainer
 from transformers.trainer import (
-    is_sagemaker_mp_enabled,
+    ALL_LAYERNORM_LAYERS,
     get_parameter_names,
     has_length,
-    ALL_LAYERNORM_LAYERS,
+    is_sagemaker_mp_enabled,
     logger,
 )
-from typing import List, Optional
 
 
 def maybe_zero_3(param, ignore_status=False, name=None):
@@ -296,8 +295,8 @@ class MagmaTrainer(Trainer):
             if self.args.local_rank == 0 or self.args.local_rank == -1:
                 self.model.config.save_pretrained(output_dir)
                 print(f"keys to match: {keys_to_match}")            
-                print(f"save checkpoint to {os.path.join(output_dir, f'mm_projector.bin')}")
-                torch.save(weight_to_save, os.path.join(output_dir, f'mm_projector.bin'))
+                print(f"save checkpoint to {os.path.join(output_dir, 'mm_projector.bin')}")
+                torch.save(weight_to_save, os.path.join(output_dir, 'mm_projector.bin'))
         else:
             super(MagmaTrainer, self)._save_checkpoint(model, trial, metrics)
 

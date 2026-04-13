@@ -6,6 +6,7 @@ Additional RLDS-specific data utilities.
 
 import hashlib
 import json
+import logging
 import os
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -14,7 +15,6 @@ import dlimp as dl
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
-import logging
 
 # from prismatic.logging import initialize_logging
 

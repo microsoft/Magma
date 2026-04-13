@@ -1,22 +1,13 @@
 import os
-import numpy as np
-import draccus
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Tuple
+
+import draccus
 import tqdm
 from libero.libero import benchmark
-from libero_env_utils import (
-    get_libero_env, 
-    get_libero_dummy_action,
-    get_libero_obs,
-    get_max_steps,
-    set_seed_everywhere
-)
-from libero_magma_utils import (
-    get_magma_model,
-    get_magma_prompt,
-    get_magma_action
-)
+from libero_env_utils import get_libero_dummy_action, get_libero_env, get_libero_obs, get_max_steps, set_seed_everywhere
+from libero_magma_utils import get_magma_action, get_magma_model, get_magma_prompt
+
 
 @dataclass
 class LiberoConfig:

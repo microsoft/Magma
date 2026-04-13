@@ -3,14 +3,13 @@
 Test script for the Magma API service.
 This script tests if the API is running correctly and can load the model.
 """
-import requests
 import argparse
-import time
 import base64
-from PIL import Image
-import io
-import json
 import sys
+import time
+
+import requests
+
 
 def test_health(base_url):
     """Test the health endpoint"""

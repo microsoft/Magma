@@ -4,14 +4,14 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 import os
-import numpy as np
-import imageio
-import torch
 
-from matplotlib import cm
+import imageio
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
 import torch.nn.functional as F
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
+from matplotlib import cm
 from PIL import Image, ImageDraw
 
 

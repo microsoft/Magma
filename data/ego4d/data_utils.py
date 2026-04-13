@@ -1,16 +1,11 @@
-import torch
-import torchvision
-import re
-import cv2
-import numpy as np
+import logging
 import os
+
 import yaml
 from tqdm import tqdm
-from PIL import Image
-from data.utils.visual_trace import visual_trace
-from data.utils.som_tom import som_prompting, tom_prompting
+
 from data.conversations import Constructor
-import logging
+
 logger = logging.getLogger(__name__)
 
 class Ego4d(Constructor):

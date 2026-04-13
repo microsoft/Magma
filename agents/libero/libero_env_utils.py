@@ -2,14 +2,16 @@
 
 import math
 import os
-import torch
 import random
-from PIL import Image
+
 import imageio
 import numpy as np
 import tensorflow as tf
+import torch
 from libero.libero import get_libero_path
 from libero.libero.envs import OffScreenRenderEnv
+from PIL import Image
+
 
 def resize_image(img, resize_size):
     """
@@ -91,7 +93,7 @@ def quat2axisangle(quat):
 
 def save_rollout_video(replay_images, success, task_description):
     """Saves a video replay of a rollout in libero."""
-    save_dir = f"./libero_videos"
+    save_dir = "./libero_videos"
     os.makedirs(save_dir, exist_ok=True)
     processed_task_description = task_description.lower().replace(" ", "_").replace("\n", "_").replace(".", "_")[:50]
     video_path = f"{save_dir}/quick_eval-success={success}--task={processed_task_description}.mp4"

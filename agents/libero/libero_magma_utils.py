@@ -1,10 +1,12 @@
-import os
 import json
-import torch
+import os
+
 import numpy as np
-from magma.image_processing_magma import MagmaImageProcessor
-from magma.processing_magma import MagmaProcessor
+import torch
+
 from magma.modeling_magma import MagmaForConditionalGeneration
+from magma.processing_magma import MagmaProcessor
+
 
 def get_magma_model(model_name):
     processor = MagmaProcessor.from_pretrained(model_name, trust_remote_code=True) 

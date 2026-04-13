@@ -1,18 +1,12 @@
-import os
-import json
 import cv2
-import csv
-import io
 import numpy as np
-from PIL import Image
-from tqdm import tqdm
-
 import torch
 import torchvision
-
 from cotracker.utils.visualizer import Visualizer
+from PIL import Image
+
+from data.utils.som_tom import som_prompting
 from data.utils.visual_trace import visual_trace
-from data.utils.som_tom import som_prompting, tom_prompting
 
 device = 'cuda'
 grid_size = 15
@@ -80,7 +74,7 @@ def som_tom(video, pred_tracks, pred_visibility, item={}, epsilon=2):
     # visualize the traces
     images = [image] * pos_tracks.shape[1]
     video = torch.stack([torchvision.transforms.ToTensor()(img) for img in images])[None].float()*255    
-    _ = vis.visualize(video, pos_tracks, pos_visibility, filename=f"som_tom")
+    _ = vis.visualize(video, pos_tracks, pos_visibility, filename="som_tom")
 
 video_path = "assets/videos/tom_orig_sample.mp4"
 # load video

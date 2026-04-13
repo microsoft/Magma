@@ -5,27 +5,19 @@
 # Jianwei Yang (jianwyan@microsoft.com)
 # --------------------------------------------------------
 
-from typing import Optional
-import spaces
-import gradio as gr
-import numpy as np
-import torch
-from PIL import Image
+import base64
 import io
-import re
+from typing import Optional
 
-import base64, os
-from util.utils import check_ocr_box, get_yolo_model, get_caption_model_processor, get_som_labeled_img
-from util.som import MarkHelper, plot_boxes_with_marks, plot_circles_with_marks
-from util.process_utils import pred_2_point, extract_bbox, extract_mark_id
-
+import gradio as gr
+import spaces
 import torch
-from PIL import Image
-
 from huggingface_hub import snapshot_download
-import torch
-from transformers import AutoModelForCausalLM
-from transformers import AutoProcessor 
+from PIL import Image
+from transformers import AutoModelForCausalLM, AutoProcessor
+from util.process_utils import extract_bbox, extract_mark_id, pred_2_point
+from util.som import MarkHelper, plot_boxes_with_marks, plot_circles_with_marks
+from util.utils import check_ocr_box, get_caption_model_processor, get_som_labeled_img, get_yolo_model
 
 # Define repository and local directory
 repo_id = "microsoft/OmniParser-v2.0"  # HF repo

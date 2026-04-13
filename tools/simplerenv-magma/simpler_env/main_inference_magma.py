@@ -2,11 +2,11 @@ import os
 
 import numpy as np
 import tensorflow as tf
-
 from simpler_env.evaluation.argparse import get_args
 from simpler_env.evaluation.maniskill2_evaluator import maniskill2_evaluator
-from simpler_env.policies.octo.octo_server_model import OctoServerInference
 from simpler_env.policies.magma.magma_model import MagmaInference
+from simpler_env.policies.octo.octo_server_model import OctoServerInference
+
 try:
     from simpler_env.policies.octo.octo_model import OctoInference
 except ImportError as e:

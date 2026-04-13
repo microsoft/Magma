@@ -1,16 +1,13 @@
-import torch
-import json
-import cv2
-import os
-import sys
-import csv
-import pickle
 import argparse
-import random
-import numpy as np
+import json
 import multiprocessing as mp
+import os
+
+import cv2
 import imageio
-from scenedetect import detect, ContentDetector
+import numpy as np
+import torch
+from scenedetect import ContentDetector, detect
 
 parser = argparse.ArgumentParser('')
 parser.add_argument('--ann_path', type=str, default="/path/to/json/file", metavar='AP',
