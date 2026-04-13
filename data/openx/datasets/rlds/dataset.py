@@ -7,15 +7,15 @@ Core interface script for configuring and initializing RLDS datasets.
 import copy
 import inspect
 import json
+import logging
 from functools import partial
 from typing import Callable, Dict, List, Optional, Tuple, Union
-import logging
-import torch.distributed as dist
 
 import dlimp as dl
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
+import torch.distributed as dist
 
 from data.openx.datasets.rlds import obs_transforms, traj_transforms
 from data.openx.datasets.rlds.utils import goal_relabeling, task_augmentation

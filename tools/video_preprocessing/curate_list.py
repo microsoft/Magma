@@ -1,17 +1,11 @@
-import torch
-import torchvision
-from torch.utils.data import DataLoader
-import os
-import sys
 import argparse
-from typing import Dict, Optional, Sequence, List
-from dataclasses import dataclass, field
-import clip
-import multiprocessing as mp
-from dataloader import *
-import threading
 import json
+import os
 import pickle
+import threading
+
+import torch
+from dataloader import *
 
 parser = argparse.ArgumentParser('')
 parser.add_argument('--dataset_name', type=str, default="video-dataset", metavar='DN',

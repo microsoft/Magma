@@ -1,23 +1,18 @@
 # from ultralytics import YOLO
-import os
-import io
 import base64
+import io
 import time
-from PIL import Image, ImageDraw, ImageFont
-import json
-import requests
-# utility function
-import os
 
-import json
-import sys
-import os
+# utility function
 import cv2
+import easyocr
 import numpy as np
+
 # %matplotlib inline
 from matplotlib import pyplot as plt
-import easyocr
 from paddleocr import PaddleOCR
+from PIL import Image
+
 reader = easyocr.Reader(['en'])
 paddle_ocr = PaddleOCR(
     lang='en',  # other lang also available
@@ -28,26 +23,23 @@ paddle_ocr = PaddleOCR(
     use_dilation=True,  # improves accuracy
     det_db_score_mode='slow',  # improves accuracy
     rec_batch_num=1024)
-import time
-import base64
 
-import os
-import ast
-import torch
-from typing import Tuple, List, Union
-from torchvision.ops import box_convert
-import re
-from torchvision.transforms import ToPILImage
+from typing import List, Tuple, Union
+
 import supervision as sv
+import torch
 import torchvision.transforms as T
-from util.box_annotator import BoxAnnotator 
+from torchvision.ops import box_convert
+from torchvision.transforms import ToPILImage
+
+from util.box_annotator import BoxAnnotator
 
 
 def get_caption_model_processor(model_name, model_name_or_path="Salesforce/blip2-opt-2.7b", device=None):
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     if model_name == "blip2":
-        from transformers import Blip2Processor, Blip2ForConditionalGeneration
+        from transformers import Blip2ForConditionalGeneration, Blip2Processor
         processor = Blip2Processor.from_pretrained("Salesforce/blip2-opt-2.7b")
         if device == 'cpu':
             model = Blip2ForConditionalGeneration.from_pretrained(
@@ -58,7 +50,7 @@ def get_caption_model_processor(model_name, model_name_or_path="Salesforce/blip2
             model_name_or_path, device_map=None, torch_dtype=torch.float16
         ).to(device)
     elif model_name == "florence2":
-        from transformers import AutoProcessor, AutoModelForCausalLM 
+        from transformers import AutoModelForCausalLM, AutoProcessor
         processor = AutoProcessor.from_pretrained("microsoft/Florence-2-base", trust_remote_code=True)
         if device == 'cpu':
             model = AutoModelForCausalLM.from_pretrained(model_name_or_path, torch_dtype=torch.float32, trust_remote_code=True)

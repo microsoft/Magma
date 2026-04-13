@@ -5,15 +5,15 @@
 # Jianwei Yang (jianwyan@microsoft.com)
 # --------------------------------------------------------
 
-import pygame
-import numpy as np
+import random
+import re
+
 import gradio as gr
-import time
+import numpy as np
+import pygame
 import torch
 from PIL import Image
 from transformers import AutoModelForCausalLM, AutoProcessor
-import re
-import random
 
 pygame.mixer.quit()  # Disable sound
 

@@ -14,30 +14,27 @@
 # limitations under the License.
 """PyTorch Magma model."""
 
-import math
-import re
 import os
+import re
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
-import numpy as np
 import torch
-import torch.utils.checkpoint
-from torch import nn
-import wandb
 import torch.distributed as dist
+import torch.utils.checkpoint
+import wandb
+from torch import nn
+from transformers import AutoConfig, AutoModelForCausalLM
+from transformers.cache_utils import Cache
 from transformers.modeling_utils import PreTrainedModel
-from transformers.activations import ACT2FN
-from transformers.cache_utils import Cache, DynamicCache
-from transformers.utils import ModelOutput
 from transformers.utils import (
-    add_code_sample_docstrings,
+    ModelOutput,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
     replace_return_docstrings,
 )
-from transformers import AutoConfig, AutoModelForCausalLM
+
 from .configuration_magma import MagmaConfig
 from .image_tower_magma import MagmaImageTower
 
@@ -327,7 +324,6 @@ class MagmaForCausalLM(MagmaPreTrainedModel):
         return self.language_model.tie_weights()
 
     def load_special_module_from_ckpt(self, ckpt_path, torch_dtype=None):
-        from deepspeed.runtime.zero import Init
         from deepspeed import zero
         # Defer initialization for ZeRO-3 compatibility
         # with Init(data_parallel_group=None):

@@ -1,16 +1,14 @@
+import argparse
+import concurrent.futures
+import os
+from dataclasses import dataclass
+from typing import Dict, Sequence
+
+import clip
 import torch
 import torchvision
 from torch.utils.data import DataLoader, Dataset
-from torchvision import datasets
-from torchvision.transforms import Resize
 from torchvision.transforms import ToPILImage
-import os
-import sys
-import argparse
-from typing import Dict, Optional, Sequence, List
-from dataclasses import dataclass, field
-import clip
-import concurrent.futures
 
 parser = argparse.ArgumentParser('')
 parser.add_argument('--dataset_name', type=str, default="video-dataset", metavar='DN',
@@ -126,7 +124,6 @@ def main():
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
 
-    import clip
     model, preprocess = clip.load("ViT-L/14@336px", device='cuda')
     model.eval()
 

@@ -1,9 +1,13 @@
-from util.utils import get_som_labeled_img, get_caption_model_processor, get_yolo_model, check_ocr_box
+import base64
+import io
+from typing import Dict
+
 import torch
 from PIL import Image
-import io
-import base64
-from typing import Dict
+
+from util.utils import check_ocr_box, get_caption_model_processor, get_som_labeled_img, get_yolo_model
+
+
 class Omniparser(object):
     def __init__(self, config: Dict):
         self.config = config

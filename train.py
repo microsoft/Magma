@@ -14,37 +14,29 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import os
-import copy
-from dataclasses import dataclass, field
 import json
 import logging
+import os
 import pathlib
-from typing import Dict, Optional, Sequence, List
-import torch
-import deepspeed
-import glob
-import transformers
-import tokenizers
-import random
-import re
+from dataclasses import dataclass, field
+from typing import Dict, Optional, Sequence
 
-from magma.image_processing_magma import MagmaImageProcessor
-from magma.processing_magma import MagmaProcessor
-from magma.modeling_magma import MagmaForCausalLM
-from magma.configuration_magma import MagmaConfig
+import torch
+import transformers
 from transformers import (
+    AutoConfig,
     AutoModelForCausalLM,
-    AutoProcessor,
-    BitsAndBytesConfig,
-    Trainer,
-    TrainingArguments,    
+    AutoTokenizer,
+    TrainingArguments,
 )
-from transformers import AutoTokenizer, AutoConfig
 from transformers.trainer import get_model_param_count
 
-from trainer import MagmaTrainer
 from data import *
+from magma.configuration_magma import MagmaConfig
+from magma.image_processing_magma import MagmaImageProcessor
+from magma.modeling_magma import MagmaForCausalLM
+from magma.processing_magma import MagmaProcessor
+from trainer import MagmaTrainer
 
 local_rank = None
 
@@ -52,7 +44,6 @@ def rank0_print(*args):
     if local_rank == 0:
         print(*args)
 
-from packaging import version
 
 @dataclass
 class ModelArguments:
@@ -237,7 +228,7 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer,
                 os.makedirs(mm_projector_folder, exist_ok=True)
                 torch.save(weight_to_save, os.path.join(mm_projector_folder, f'{current_folder}.bin'))
             else:
-                torch.save(weight_to_save, os.path.join(output_dir, f'mm_projector.bin'))
+                torch.save(weight_to_save, os.path.join(output_dir, 'mm_projector.bin'))
         return
 
     if trainer.deepspeed:
@@ -423,7 +414,7 @@ def train():
             **bnb_model_from_pretrained_args
         )     
         # reload vision encoder
-        from open_clip.pretrained import download_pretrained_from_hf      
+        from open_clip.pretrained import download_pretrained_from_hf
         if vision_config['vision_tower'] == 'convnext':
             model_id = 'laion/CLIP-convnext_large-laion2B-s34B-b82K-augreg'
         else:

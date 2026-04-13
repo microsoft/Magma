@@ -1,26 +1,23 @@
-import os
-import uuid
 import warnings
 from typing import List, Optional, Tuple, Union
 
+import numpy as np
+import PIL
 import torch
 from accelerate import Accelerator, DistributedType
-from tqdm import tqdm
-import PIL
-from torchvision.transforms.functional import to_pil_image
 from decord import VideoReader, cpu
-import numpy as np
-from lmms_eval import utils
 from lmms_eval.api.instance import Instance
 from lmms_eval.api.model import lmms
 from lmms_eval.api.registry import register_model
-from lmms_eval.models.model_utils.qwen.qwen_generate_utils import make_context
+from torchvision.transforms.functional import to_pil_image
+from tqdm import tqdm
 
 warnings.simplefilter("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore")
 
 from loguru import logger as eval_logger
-from transformers import AutoModelForCausalLM, AutoProcessor 
+from transformers import AutoModelForCausalLM, AutoProcessor
+
 
 @register_model("magma")
 class Magma(lmms):

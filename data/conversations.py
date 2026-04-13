@@ -1,18 +1,17 @@
+import os
+import random
+import re
+import time
+
+import cv2
 import torch
 import torchvision
-import re
-import cv2
-import numpy as np
-import os
-import yaml
-from PIL import Image
-from data.utils.visual_trace import visual_trace
-from data.utils.som_tom import som_prompting, tom_prompting
-import torchvision.io as tv_io
-import torchvision
-import time
-import random
 from decord import VideoReader, cpu
+from PIL import Image
+
+from data.utils.som_tom import som_prompting
+from data.utils.visual_trace import visual_trace
+
 
 class Constructor():
     def __init__(self, **kwargs):
@@ -192,7 +191,7 @@ class Constructor():
             return item
 
         if 'image_size' not in item:
-            assert '(height,width)' in item, f"image_size not in item and (height,width) not in item"
+            assert '(height,width)' in item, "image_size not in item and (height,width) not in item"
             item['image_size'] = item['(height,width)'][::-1]            
         
         if isinstance(item['image_size'][0], torch.Tensor):
@@ -514,7 +513,7 @@ class Constructor():
                 item['conversations'].append({'from': 'gpt', 'value': conv_gpt})     
                 item['image'].append(image)
             
-            import pdb; pdb.set_trace()
+            import pdb; pdb.set_trace()  # noqa: I001
             return item
         
 
@@ -580,7 +579,7 @@ class Constructor():
             return item
         
         if 'image_size' not in item:
-            assert '(height,width)' in item, f"image_size not in item and (height,width) not in item"
+            assert '(height,width)' in item, "image_size not in item and (height,width) not in item"
             item['image_size'] = item['(height,width)'][::-1]            
         
         if isinstance(item['image_size'][0], torch.Tensor):

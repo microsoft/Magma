@@ -5,17 +5,14 @@
 # Jianwei Yang (jianwyan@microsoft.com)
 # --------------------------------------------------------
 
-import os
-import warnings
-from utils.visualizer import Visualizer
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+import ast
 import random
-import gradio as gr
-import ast, re
 
+import gradio as gr
 import torch
 import torchvision
 from transformers import AutoModelForCausalLM, AutoProcessor
+from utils.visualizer import Visualizer
 
 '''
 build model

@@ -1,7 +1,8 @@
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
-import numpy as np
-import matplotlib.pyplot as plt
+
 
 def som_prompting(image, pos_traces, neg_traces, draw_som_positive=False, draw_som_negative=False):
     """

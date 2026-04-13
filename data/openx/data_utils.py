@@ -1,23 +1,17 @@
 
-import torch
-import torchvision
-import re
-import cv2
-import numpy as np
-import os
-import yaml
 import logging
-from PIL import Image
+import os
+from dataclasses import dataclass
+
+import torch
 import torch.distributed as dist
-from data.utils.visual_trace import visual_trace
-from data.utils.som_tom import som_prompting, tom_prompting
+import yaml
+
 from data.conversations import Constructor
-from .conf import VLAConfig, VLARegistry
-from dataclasses import dataclass, field
-from magma.processing_magma import MagmaProcessor
-from .materialize import get_vla_dataset_and_collator
-from .datasets.rlds.utils.data_utils import save_dataset_statistics
 from data.utils.visual_tracker import visual_tracker
+
+from .conf import VLAConfig
+from .materialize import get_vla_dataset_and_collator
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +21,7 @@ data_utils.py
 General utilities and classes for facilitating data loading and collation.
 """
 
-from dataclasses import dataclass
-from typing import Callable, Dict, Sequence, Tuple
 
-import torch
-from torch.nn.utils.rnn import pad_sequence
-from torch import distributed as dist
 # HuggingFace Default / LLaMa-2 IGNORE_INDEX (for labels)
 IGNORE_INDEX = -100
 

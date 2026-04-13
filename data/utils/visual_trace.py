@@ -1,16 +1,9 @@
-import io
-import os
-import cv2
-import json
-import torch
-import numpy as np
-from PIL import Image
-from IPython import display
-from tqdm import tqdm
-from cotracker.utils.visualizer import Visualizer, read_video_from_path
-from matplotlib import cm
 import faiss
+import torch
+from cotracker.utils.visualizer import Visualizer
 from kmeans_pytorch import kmeans
+from matplotlib import cm
+
 
 class visual_trace():
     def __init__(

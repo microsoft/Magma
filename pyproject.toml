@@ -132,3 +132,20 @@ exclude = [
     "wandb",
     "docs",
 ]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+# F821: missing imports in several files (real issues, out of scope for this PR)
+# I001: inline `import pdb; pdb.set_trace()` debug statements trigger block-level sort check
+# E101: mixed tabs/spaces in tools/simplerenv-magma
+# F811: intentional subclassing of imported TrainingArguments in train.py
+ignore = ["E501", "E402", "E731", "E722", "E741", "E721", "E701", "E702", "E711", "I001", "F841", "F403", "F405", "F821", "E101", "F811"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.uv]
+# Install with: uv sync
