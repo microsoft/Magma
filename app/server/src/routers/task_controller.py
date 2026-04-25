@@ -36,7 +36,7 @@ async def list_tasks():
 @router.get("/pending", response_model=SuccessResponseDAO)
 async def get_pending_task():
     """
-    Get the next pending task for the agent to pick up.
+    Get the next pending task for the client to dispatch to the local agent.
     Moves the task from 'pending' to 'in_progress'.
     Returns null data if no pending tasks.
     """
@@ -55,12 +55,28 @@ async def get_task(task_id: str):
     return SuccessResponseDAO(data=task.model_dump(mode="json"))
 
 
+@router.post("/{task_id}/claim", response_model=SuccessResponseDAO)
+async def claim_task(task_id: str):
+    """
+    Claim a specific pending task for local-agent dispatch.
+
+    This lets the browser dispatch only the task it created instead of taking
+    the oldest task from the shared pending queue.
+    """
+    task: Optional[TaskDAO] = TaskService.claim_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task.status != "in_progress":
+        raise HTTPException(status_code=409, detail=f"Task is already {task.status}")
+    return SuccessResponseDAO(data=task.model_dump(mode="json"))
+
+
 @router.post("/process", response_model=SuccessResponseDAO)
 async def process_screenshot(payload: TaskProcessDAO):
     """
     Process a screenshot for a task and return the next PyAutoGUI action.
 
-    The agent sends a screenshot (base64) and the current step number.
+    The local agent sends a screenshot (base64) and the current step number.
     The server returns the next action to execute.
     """
     try:

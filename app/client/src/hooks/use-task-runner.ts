@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useStore } from "@tanstack/react-store";
 import { taskStore } from "../stores/task";
-import { createTask, getTask, updateTaskStatus } from "../services/task";
+import { claimTask, createTask, getTask, updateTaskStatus } from "../services/task";
+import { dispatchTaskToAgent } from "../services/agent";
 import { useQueryClient } from "@tanstack/react-query";
 import { TASK_QUERY_KEYS } from "../services/task.query";
 import type { StepLog } from "../stores/task";
@@ -10,18 +11,32 @@ import type { Task } from "../types/task";
 const POLL_INTERVAL = 2000;
 
 export const useTaskRunner = () => {
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const progressPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dispatchPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dispatchedTaskIdsRef = useRef<Set<string>>(new Set());
   const lastStepRef = useRef(0);
   const queryClient = useQueryClient();
 
   const store = useStore(taskStore);
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
+  const stopProgressPolling = useCallback(() => {
+    if (progressPollRef.current) {
+      clearInterval(progressPollRef.current);
+      progressPollRef.current = null;
     }
   }, []);
+
+  const stopDispatchPolling = useCallback(() => {
+    if (dispatchPollRef.current) {
+      clearInterval(dispatchPollRef.current);
+      dispatchPollRef.current = null;
+    }
+  }, []);
+
+  const stopPolling = useCallback(() => {
+    stopProgressPolling();
+    stopDispatchPolling();
+  }, [stopProgressPolling, stopDispatchPolling]);
 
   const pollTaskProgress = useCallback(
     async (taskId: string) => {
@@ -50,6 +65,7 @@ export const useTaskRunner = () => {
         // Update status
         if (task.status === "done" || task.status === "failed" || task.status === "cancelled") {
           stopPolling();
+          dispatchedTaskIdsRef.current.delete(taskId);
           taskStore.setState((s) => ({
             ...s,
             isRunning: false,
@@ -64,6 +80,34 @@ export const useTaskRunner = () => {
     [stopPolling, queryClient]
   );
 
+  const pollCreatedTaskForDispatch = useCallback(
+    async (taskId: string) => {
+      try {
+        const task = await getTask(taskId);
+        if (task.status !== "pending" || dispatchedTaskIdsRef.current.has(task.id)) return;
+
+        dispatchedTaskIdsRef.current.add(task.id);
+
+        try {
+          const claimedTask = await claimTask(task.id);
+          await dispatchTaskToAgent(claimedTask);
+          stopDispatchPolling();
+          queryClient.invalidateQueries({ queryKey: TASK_QUERY_KEYS.all });
+        } catch {
+          dispatchedTaskIdsRef.current.delete(task.id);
+          try {
+            await updateTaskStatus(task.id, "pending");
+          } catch {
+            // Retry this task's claim/dispatch cycle on the next interval.
+          }
+        }
+      } catch {
+        // Silently retry on next interval
+      }
+    },
+    [stopDispatchPolling, queryClient]
+  );
+
   const startTask = useCallback(
     async (prompt: string) => {
       if (!prompt.trim()) return;
@@ -72,6 +116,7 @@ export const useTaskRunner = () => {
       const task = await createTask(prompt);
 
       lastStepRef.current = 0;
+      dispatchedTaskIdsRef.current.clear();
       taskStore.setState((s) => ({
         ...s,
         activeTaskId: task.id,
@@ -80,20 +125,23 @@ export const useTaskRunner = () => {
         finalStatus: null,
       }));
 
-      // Start polling for progress updates from the agent
-      // First poll fires immediately so we don't miss fast tasks
       stopPolling();
+      pollCreatedTaskForDispatch(task.id);
       pollTaskProgress(task.id);
-      pollRef.current = setInterval(() => {
+      dispatchPollRef.current = setInterval(() => {
+        pollCreatedTaskForDispatch(task.id);
+      }, POLL_INTERVAL);
+      progressPollRef.current = setInterval(() => {
         pollTaskProgress(task.id);
       }, POLL_INTERVAL);
     },
-    [pollTaskProgress, stopPolling]
+    [pollCreatedTaskForDispatch, pollTaskProgress, stopPolling]
   );
 
   const stopTask = useCallback(async () => {
     stopPolling();
     const taskId = taskStore.state.activeTaskId;
+    if (taskId) dispatchedTaskIdsRef.current.delete(taskId);
     if (taskId) {
       try {
         await updateTaskStatus(taskId, "cancelled");

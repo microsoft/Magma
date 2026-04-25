@@ -67,6 +67,26 @@ class TestTaskController:
         assert payload["data"]["status"] == "in_progress"
 
     @pytest.mark.asyncio
+    async def test_claim_task_claims_specific_pending_task(self, task_http_client):
+        first_task = TaskService.create_task(TaskCreateDAO(prompt="Do not claim me"))
+        second_task = TaskService.create_task(TaskCreateDAO(prompt="Claim me"))
+
+        response = await task_http_client.post(f"/api/v1/tasks/{second_task.id}/claim")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["data"]["id"] == second_task.id
+        assert payload["data"]["status"] == "in_progress"
+        assert first_task.status == "pending"
+
+    @pytest.mark.asyncio
+    async def test_claim_task_returns_404_for_missing_task(self, task_http_client):
+        response = await task_http_client.post("/api/v1/tasks/missing-task/claim")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Task not found"
+
+    @pytest.mark.asyncio
     async def test_get_task_returns_404_for_missing_task(self, task_http_client):
         response = await task_http_client.get("/api/v1/tasks/missing-task")
 
@@ -83,7 +103,9 @@ class TestTaskController:
         assert response.json()["data"]["id"] == task.id
 
     @pytest.mark.asyncio
-    async def test_process_screenshot_returns_success_payload(self, task_http_client, sample_screenshot_base64):
+    async def test_process_screenshot_returns_success_payload(
+        self, task_http_client, sample_screenshot_base64
+    ):
         task = TaskService.create_task(TaskCreateDAO(prompt="Finish this task"))
 
         response = await task_http_client.post(

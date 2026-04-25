@@ -20,17 +20,21 @@ FastAPI backend for screenshot-based UI automation on Word, Excel, and PowerPoin
 ## Endpoints
 - `GET /health` — health check
 - `POST /api/v1/tasks` — create a task
-- `GET /api/v1/tasks/pending` — agent polls for the next pending task
+- `GET /api/v1/tasks/pending` — claim the next pending task from the shared queue
+- `POST /api/v1/tasks/{id}/claim` — claim one specific pending task
 - `POST /api/v1/tasks/process` — submit a screenshot, receive the next PyAutoGUI action
 - `PATCH /api/v1/tasks/{id}/status` — cancel / update status
 
 ## Local agent
 
-Actual mouse/keyboard execution runs on the client machine. Point the local agent at this Space:
+Actual mouse/keyboard execution runs on the client machine. Start the local agent API and point it at this Space:
 
 ```bash
-python app/agent/executor.py --server-url https://wafair-dome.hf.space
+python app/agent/executor.py --server-url https://wafair-dome.hf.space --port 8010
 ```
+
+The web client polls only the task it created, claims that task by ID, then
+sends it to `http://localhost:8010/api/v1/agent/tasks` for local execution.
 
 ## Hardware
 

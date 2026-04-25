@@ -89,7 +89,7 @@ export const HomePage: FC = () => {
   return (
     <ContentLayout
       title="UI Automation"
-      subtitle="Enter a prompt. The agent running in the background will pick it up, take screenshots, and execute PyAutoGUI actions automatically."
+      subtitle="Enter a prompt. This client claims its task, sends it to the local agent, and tracks PyAutoGUI execution."
     >
       {/* Prompt input */}
       <Card className="mb-4">
@@ -135,8 +135,8 @@ export const HomePage: FC = () => {
           description={
             <>
               Task <Typography.Text code>{activeTaskId}</Typography.Text> is
-              waiting for the agent to pick it up and execute. Make sure the
-              agent is running and pointed at the backend.
+              waiting for this client to claim it and send it to the local
+              agent. Make sure the agent API is running.
             </>
           }
           className="mb-4"

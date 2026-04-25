@@ -1,5 +1,5 @@
 import type { FC, ReactNode } from "react";
-import { Layout, Typography } from "antd";
+import { Layout } from "antd";
 import { RobotOutlined } from "@ant-design/icons";
 import styled from "styled-components";
 

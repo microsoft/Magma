@@ -62,6 +62,16 @@ class TestTaskService:
         assert claimed_second.status == TaskStatus.IN_PROGRESS
         assert TaskService.claim_pending_task() is None
 
+    def test_claim_task_claims_only_requested_task(self):
+        first_task = TaskService.create_task(TaskCreateDAO(prompt="First task"))
+        second_task = TaskService.create_task(TaskCreateDAO(prompt="Second task"))
+
+        claimed_second = TaskService.claim_task(second_task.id)
+
+        assert claimed_second is second_task
+        assert first_task.status == TaskStatus.PENDING
+        assert second_task.status == TaskStatus.IN_PROGRESS
+
     def test_process_screenshot_raises_for_missing_task(self, sample_screenshot_base64):
         with pytest.raises(ValueError, match="Task not found: missing-task"):
             TaskService.process_screenshot(

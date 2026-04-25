@@ -2,6 +2,7 @@
 
 interface WindowConfig {
   baseApiUrl: string;
+  agentApiUrl?: string;
 }
 
 declare global {

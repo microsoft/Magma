@@ -19,6 +19,18 @@ export const getTask = async (taskId: string): Promise<Task> => {
   throw new Error(response.errors?.msg?.[0] || "Failed to get task");
 };
 
+export const getPendingTask = async (): Promise<Task | null> => {
+  const response = await coreApi.get<Task | null>("/api/v1/tasks/pending");
+  if (response.success) return response.data ?? null;
+  throw new Error(response.errors?.msg?.[0] || "Failed to get pending task");
+};
+
+export const claimTask = async (taskId: string): Promise<Task> => {
+  const response = await coreApi.post<Task>(`/api/v1/tasks/${taskId}/claim`);
+  if (response.success && response.data) return response.data;
+  throw new Error(response.errors?.msg?.[0] || "Failed to claim task");
+};
+
 export const processScreenshot = async (
   payload: TaskProcessRequest
 ): Promise<TaskProcessResponse> => {

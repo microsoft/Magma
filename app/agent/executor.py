@@ -2,16 +2,15 @@
 UI Automation Agent - PyAutoGUI Executor
 
 This agent runs on the local machine and:
-1. Polls the backend for tasks with status "in_progress"
-2. Takes a screenshot of the current screen
-3. Sends the screenshot to the backend API
-4. Receives a PyAutoGUI action to execute
-5. Executes the action
-6. Loops until the backend returns "done" status
-7. Returns to polling for the next task
+1. Exposes a FastAPI endpoint for the web client to submit claimed tasks
+2. Takes screenshots of the current screen
+3. Sends screenshots to the backend API
+4. Receives PyAutoGUI actions to execute
+5. Executes actions
+6. Loops until the backend returns a terminal task status
 
 Usage:
-    python executor.py --server-url http://localhost:8000
+    python executor.py --server-url http://localhost:8000 --port 8010
 """
 
 from __future__ import annotations
@@ -20,10 +19,15 @@ import argparse
 import base64
 import io
 import logging
+import threading
 import time
 
 import httpx
 import pyautogui
+import uvicorn
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,6 +38,24 @@ logger = logging.getLogger("agent")
 # PyAutoGUI safety settings
 pyautogui.FAILSAFE = True  # Move mouse to corner to abort
 pyautogui.PAUSE = 0.5  # Pause between actions
+
+HTTP_TIMEOUT = httpx.Timeout(300.0, connect=30.0)
+
+
+class AgentTask(BaseModel):
+    id: str
+    prompt: str
+    status: str | None = None
+    current_step: int = 0
+    max_steps: int = 20
+    actions_history: list[dict] = Field(default_factory=list)
+    created_at: str | None = None
+
+
+class SuccessResponse(BaseModel):
+    data: dict
+    api_version: str = "v1.0"
+    errors: None = None
 
 
 def take_screenshot_base64() -> str:
@@ -97,18 +119,17 @@ def execute_action(action: dict) -> None:
         logger.warning(f"Unknown action type: {action_type}")
 
 
-def poll_for_task(client: httpx.Client) -> dict | None:
-    """Poll the backend for a pending task to pick up."""
+def update_task_status(client: httpx.Client, task_id: str, status: str) -> None:
+    """Best-effort status update back to the backend."""
     try:
-        resp = client.get("/api/v1/tasks/pending")
-        if resp.status_code == 200:
-            data = resp.json().get("data")
-            if data:
-                return data
-        return None
+        resp = client.patch(f"/api/v1/tasks/{task_id}/status", json={"status": status})
+        if resp.status_code != 200:
+            logger.warning(
+                f"Could not mark task {task_id} as {status}: "
+                f"{resp.status_code} {resp.text[:500]}"
+            )
     except httpx.HTTPError as e:
-        logger.warning(f"Error polling for tasks: {e}")
-        return None
+        logger.warning(f"Could not mark task {task_id} as {status}: {e}")
 
 
 def run_task(client: httpx.Client, task: dict, delay: float) -> None:
@@ -159,7 +180,8 @@ def run_task(client: httpx.Client, task: dict, delay: float) -> None:
         )
         if resp.status_code != 200:
             logger.error(f"Server error {resp.status_code}: {resp.text[:500]}")
-            break
+            update_task_status(client, task_id, "failed")
+            return
         result = resp.json()["data"]
 
         action = result["action"]
@@ -180,27 +202,73 @@ def run_task(client: httpx.Client, task: dict, delay: float) -> None:
         step += 1
 
     logger.warning(f"Task {task_id}: max steps ({max_steps}) reached")
+    update_task_status(client, task_id, "failed")
 
 
-def run_agent(server_url: str, poll_interval: float = 2.0, delay: float = 1.0) -> None:
-    """Main agent loop: poll for tasks, execute them, repeat."""
-    # Generous timeout: HF cold starts can take several minutes (Magma-8B re-download + load).
-    # Inference itself on a warm container is 3-15s per step.
-    client = httpx.Client(base_url=server_url, timeout=httpx.Timeout(300.0, connect=30.0))
-
-    logger.info(f"Agent started. Polling {server_url} every {poll_interval}s...")
-
+def _run_task_background(app: FastAPI, task: dict) -> None:
+    task_id = task["id"]
     try:
-        while True:
-            task = poll_for_task(client)
-            if task:
-                run_task(client, task, delay)
-            else:
-                time.sleep(poll_interval)
-    except KeyboardInterrupt:
-        logger.info("Agent stopped by user (Ctrl+C).")
+        with httpx.Client(base_url=app.state.server_url, timeout=HTTP_TIMEOUT) as client:
+            run_task(client, task, app.state.delay)
+    except Exception:
+        logger.exception(f"Task {task_id} failed inside the local agent")
+        try:
+            with httpx.Client(base_url=app.state.server_url, timeout=HTTP_TIMEOUT) as client:
+                update_task_status(client, task_id, "failed")
+        except Exception:
+            logger.exception(f"Could not report task {task_id} failure to backend")
     finally:
-        client.close()
+        with app.state.active_task_lock:
+            if app.state.active_task_id == task_id:
+                app.state.active_task_id = None
+
+
+def create_app(server_url: str = "http://localhost:8000", delay: float = 1.0) -> FastAPI:
+    app = FastAPI(
+        title="UI Automation Agent",
+        description="Local PyAutoGUI task executor",
+        version="0.1.0",
+    )
+    app.state.server_url = server_url.rstrip("/")
+    app.state.delay = delay
+    app.state.active_task_id = None
+    app.state.active_task_lock = threading.Lock()
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.get("/health")
+    async def health():
+        return {
+            "service": "agent",
+            "status": "ok",
+            "backend": app.state.server_url,
+            "active_task_id": app.state.active_task_id,
+        }
+
+    @app.post("/api/v1/agent/tasks", response_model=SuccessResponse)
+    async def submit_task(task: AgentTask, background_tasks: BackgroundTasks):
+        with app.state.active_task_lock:
+            if app.state.active_task_id is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Agent is already processing task {app.state.active_task_id}",
+                )
+            app.state.active_task_id = task.id
+
+        logger.info(f"Accepted task {task.id}: {task.prompt}")
+        background_tasks.add_task(_run_task_background, app, task.model_dump(mode="json"))
+        return SuccessResponse(data={"task_id": task.id, "status": "accepted"})
+
+    return app
+
+
+app = create_app()
 
 
 def main():
@@ -211,10 +279,15 @@ def main():
         help="Backend server URL (default: http://localhost:8000)",
     )
     parser.add_argument(
-        "--poll-interval",
-        type=float,
-        default=2.0,
-        help="Seconds between polling for new tasks (default: 2.0)",
+        "--host",
+        default="0.0.0.0",
+        help="Agent API host (default: 0.0.0.0)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8010,
+        help="Agent API port (default: 8010)",
     )
     parser.add_argument(
         "--delay",
@@ -224,10 +297,12 @@ def main():
     )
     args = parser.parse_args()
 
-    run_agent(
-        server_url=args.server_url,
-        poll_interval=args.poll_interval,
-        delay=args.delay,
+    logger.info(
+        f"Starting agent API on {args.host}:{args.port}; backend={args.server_url}; "
+        f"delay={args.delay}s"
+    )
+    uvicorn.run(
+        create_app(server_url=args.server_url, delay=args.delay), host=args.host, port=args.port
     )
 
 
