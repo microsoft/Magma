@@ -136,10 +136,7 @@ export const HomePage: FC = () => {
             <>
               Task <Typography.Text code>{activeTaskId}</Typography.Text> is
               waiting for the agent to pick it up and execute. Make sure the
-              agent is running:{" "}
-              <Typography.Text code>
-                python executor.py --server-url http://localhost:8000
-              </Typography.Text>
+              agent is running and pointed at the backend.
             </>
           }
           className="mb-4"

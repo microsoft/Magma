@@ -1,0 +1,4 @@
+# Integration test outputs — saved here only when running with
+# FULL_APP_USE_REAL_MODEL_TESTS=1. Not worth version-controlling.
+*
+!.gitignore

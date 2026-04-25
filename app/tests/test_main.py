@@ -12,8 +12,17 @@ class TestMain:
         assert app.docs_url == "/docs"
         assert app.redoc_url == "/redoc"
 
-    def test_create_app_runs_warmup_on_startup_and_exposes_health(self, task_model_module):
-        task_model_module.warmup.reset_mock()
+    def test_create_app_runs_warmup_on_startup_and_exposes_health(self, task_model_module, monkeypatch):
+        # Always replace warmup with a MagicMock for this test, regardless of
+        # whether conftest installed the stub module or we're running in real-
+        # model mode (FULL_APP_USE_REAL_MODEL_TESTS=1). The real warmup would
+        # load the Magma checkpoint + OmniParser on app startup — slow, GPU-
+        # heavy, and irrelevant for verifying that the startup hook fires.
+        # monkeypatch auto-reverts after the test so other tests are unaffected.
+        from unittest.mock import MagicMock
+
+        mock_warmup = MagicMock(name="warmup")
+        monkeypatch.setattr(task_model_module, "warmup", mock_warmup)
 
         with TestClient(main.create_app()) as client:
             response = client.get("/health")
@@ -21,7 +30,7 @@ class TestMain:
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
         assert "X-Request-Id" in response.headers
-        task_model_module.warmup.assert_called_once()
+        mock_warmup.assert_called_once()
 
     def test_create_app_disables_docs_when_not_in_development(self, monkeypatch):
         monkeypatch.setattr(main, "is_dev", lambda: False)

@@ -26,7 +26,7 @@ bitsandbytes = ">=0.42"
 huggingface-hub = ">=0.20"
 ultralytics = ">=8.0"
 opencv-python-headless = ">=4.8"
-gdown = ">=5.0"
+easyocr = ">=1.7"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"

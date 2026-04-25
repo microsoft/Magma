@@ -184,7 +184,9 @@ def run_task(client: httpx.Client, task: dict, delay: float) -> None:
 
 def run_agent(server_url: str, poll_interval: float = 2.0, delay: float = 1.0) -> None:
     """Main agent loop: poll for tasks, execute them, repeat."""
-    client = httpx.Client(base_url=server_url, timeout=60.0)
+    # Generous timeout: HF cold starts can take several minutes (Magma-8B re-download + load).
+    # Inference itself on a warm container is 3-15s per step.
+    client = httpx.Client(base_url=server_url, timeout=httpx.Timeout(300.0, connect=30.0))
 
     logger.info(f"Agent started. Polling {server_url} every {poll_interval}s...")
 

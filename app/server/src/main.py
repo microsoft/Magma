@@ -53,6 +53,10 @@ def create_app() -> FastAPI:
         warmup()
         logger.info("Models ready.")
 
+    @app.get("/")
+    async def root():
+        return {"service": "DOME", "status": "ok", "endpoints": ["/health", "/api/v1/tasks"]}
+
     @app.get("/health")
     async def health():
         return {"status": "ok"}

@@ -9,11 +9,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-import shutil
-import time
 from pathlib import Path
 
-import gdown
 import torch
 import torch.nn as nn
 from huggingface_hub import snapshot_download
@@ -40,7 +37,7 @@ import os
 CHECKPOINT_LOCAL_DIR = Path(
     os.environ.get(
         "MAGMA_CHECKPOINT_DIR",
-        str(Path(__file__).resolve().parents[5] / "checkpoints" / "finetune-3apps-r32-a64-maxlen2560-focal-marks" / "checkpoint-3400"),
+        str(Path(__file__).resolve().parents[5] / "checkpoints" / "finetune-3apps-r32-a64-maxlen2560-focal-marks-5actions" / "checkpoint-3300"),
     )
 )
 
@@ -53,21 +50,14 @@ WEIGHTS_DIR = Path(
 )
 OMNIPARSER_MODEL_PATH = WEIGHTS_DIR / "icon_detect" / "model.pt"
 
-# Google Drive folders containing the LoRA adapter checkpoint.
-# The first URL is the preferred source; later URLs are fallbacks.
-CHECKPOINT_GDRIVE_URLS = [
-    url.strip()
-    for url in os.environ.get("MAGMA_CHECKPOINT_URLS", "").split(",")
-    if url.strip()
-] or [
-    "https://drive.google.com/drive/folders/15Q9pnO5pTq22qDcZi-hYRSY4M34nb20U?usp=sharing",
-    "https://drive.google.com/drive/folders/18RNkzvGCehTvi6J1vqV4hb8E9_fkmvXR?usp=drive_link",
-]
+# LoRA adapter repo on HuggingFace Hub. Set MAGMA_LORA_REPO to "<user>/<repo>".
+# If unset, the checkpoint must already exist at MAGMA_CHECKPOINT_DIR.
+LORA_REPO_ID = os.environ.get("MAGMA_LORA_REPO", "")
 
 INSTRUCTION_TEMPLATE = (
     "Imagine that you are imitating humans doing GUI navigation step by step.\n\n"
     "You can perform actions such as CLICK, DOUBLE_CLICK, RIGHT_CLICK, MIDDLE_CLICK, "
-    "MOVE, DRAG, SCROLL, HSCROLL, TYPE, PRESS, HOTKEY.\n\n"
+    "MOVE, DRAG, SCROLL, HSCROLL, TYPE, PRESS, HOTKEY, TERMINATE.\n\n"
     "Output format must be:\n"
     '{{"ACTION": action_type, "MARK": numeric_id, "VALUE": text_or_null}}\n\n'
     "Task: {task_prompt}\n\n"
@@ -163,83 +153,32 @@ def _has_valid_checkpoint(path: Path) -> bool:
     return has_config and has_weights
 
 
-def _download_checkpoint_folder(url: str, output_dir: Path, retries: int = 3) -> None:
-    """Download LoRA adapter checkpoint from Google Drive (matching notebook retry logic)."""
-    last_exc = None
-    for attempt in range(1, retries + 1):
-        try:
-            logger.info(f"Checkpoint download attempt {attempt}/{retries} (use_cookies=False)")
-            gdown.download_folder(
-                url=url,
-                output=str(output_dir),
-                quiet=False,
-                use_cookies=False,
-                remaining_ok=False,
-            )
-            return
-        except Exception as exc:
-            last_exc = exc
-            logger.warning(f"Checkpoint download failed on attempt {attempt}: {exc}")
-            if attempt < retries:
-                time.sleep(5 * attempt)
-
-    logger.info("Retrying checkpoint download with use_cookies=True …")
-    try:
-        gdown.download_folder(
-            url=url,
-            output=str(output_dir),
-            quiet=False,
-            use_cookies=True,
-            remaining_ok=False,
-        )
-    except Exception as exc:
-        raise RuntimeError(
-            "Google Drive blocked automated folder download (rate-limit or anti-bot challenge). "
-            "Wait and retry, or mirror the checkpoint outside Drive and update MAGMA_CHECKPOINT_DIR."
-        ) from (last_exc or exc)
-
-
 def _ensure_checkpoint() -> None:
-    """Download the LoRA adapter from Google Drive if not already present."""
+    """Download the LoRA adapter from HuggingFace Hub if not already present."""
     if _has_valid_checkpoint(CHECKPOINT_LOCAL_DIR):
         logger.info(f"Using cached checkpoint in {CHECKPOINT_LOCAL_DIR}")
         return
 
-    logger.info(f"Checkpoint not found at {CHECKPOINT_LOCAL_DIR}. Downloading from Google Drive …")
-    last_exc = None
-
-    for idx, checkpoint_url in enumerate(CHECKPOINT_GDRIVE_URLS, start=1):
-        logger.info(
-            "Trying checkpoint source %s/%s: %s",
-            idx,
-            len(CHECKPOINT_GDRIVE_URLS),
-            checkpoint_url,
+    if not LORA_REPO_ID:
+        raise RuntimeError(
+            f"Checkpoint not found at {CHECKPOINT_LOCAL_DIR} and MAGMA_LORA_REPO is not set. "
+            "Set MAGMA_LORA_REPO=<user>/<repo> to pull the LoRA adapter from HuggingFace Hub, "
+            "or point MAGMA_CHECKPOINT_DIR at a local adapter directory."
         )
 
-        if CHECKPOINT_LOCAL_DIR.exists():
-            shutil.rmtree(CHECKPOINT_LOCAL_DIR)
-        CHECKPOINT_LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+    logger.info(
+        f"Checkpoint not found at {CHECKPOINT_LOCAL_DIR}. "
+        f"Downloading from HuggingFace Hub: {LORA_REPO_ID}"
+    )
+    CHECKPOINT_LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+    snapshot_download(repo_id=LORA_REPO_ID, local_dir=str(CHECKPOINT_LOCAL_DIR))
 
-        try:
-            _download_checkpoint_folder(checkpoint_url, CHECKPOINT_LOCAL_DIR)
-        except Exception as exc:
-            last_exc = exc
-            logger.warning(f"Checkpoint download failed from {checkpoint_url}: {exc}")
-        else:
-            if _has_valid_checkpoint(CHECKPOINT_LOCAL_DIR):
-                logger.info(f"Checkpoint downloaded successfully from {checkpoint_url}")
-                return
-            logger.warning(
-                f"Checkpoint downloaded from {checkpoint_url} but is incomplete at {CHECKPOINT_LOCAL_DIR}"
-            )
-
-        if CHECKPOINT_LOCAL_DIR.exists() and not _has_valid_checkpoint(CHECKPOINT_LOCAL_DIR):
-            shutil.rmtree(CHECKPOINT_LOCAL_DIR)
-
-    raise RuntimeError(
-        f"Checkpoint in {CHECKPOINT_LOCAL_DIR} is incomplete after trying all configured URLs. "
-        f"Tried: {CHECKPOINT_GDRIVE_URLS}"
-    ) from last_exc
+    if not _has_valid_checkpoint(CHECKPOINT_LOCAL_DIR):
+        raise RuntimeError(
+            f"Downloaded checkpoint from {LORA_REPO_ID} is incomplete at {CHECKPOINT_LOCAL_DIR} "
+            "(missing adapter_config.json or adapter_model.safetensors)."
+        )
+    logger.info(f"Checkpoint downloaded successfully from {LORA_REPO_ID}")
 
 
 def load_magma():

@@ -27,12 +27,14 @@ PROCESS_OUTPUT_DIR = Path(__file__).resolve().parents[3] / "output"
 # In-memory task store (replace with DB in production)
 _tasks: dict[str, TaskDAO] = {}
 
-# Map model ACTION strings → server ActionType (4 actions only)
+# Map model ACTION strings → server ActionType. TERMINATE routes to DONE so the
+# task is marked complete when the model signals the task is already finished.
 _ACTION_MAP: dict[str, ActionType] = {
     "CLICK": ActionType.CLICK,
     "TYPE": ActionType.TYPE,
     "DOUBLE_CLICK": ActionType.DOUBLE_CLICK,
     "RIGHT_CLICK": ActionType.RIGHT_CLICK,
+    "TERMINATE": ActionType.DONE
 }
 
 

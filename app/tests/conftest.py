@@ -1,9 +1,20 @@
+import os
+from pathlib import Path
+
+# Load environment variables from app/.env BEFORE any other imports that might
+# read os.environ. Without this, FULL_APP_USE_REAL_MODEL_TESTS and other env
+# vars defined in .env are invisible to pytest's collection phase, and the
+# integration-test model stub is silently installed (causing every integration
+# test to return "done" on the first step).
+from dotenv import load_dotenv
+
+APP_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(APP_ROOT / ".env")
+
 import base64
 import io
-import os
 import sys
 import types
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,7 +23,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
-SERVER_ROOT = Path(__file__).resolve().parents[1] / "server"
+SERVER_ROOT = APP_ROOT / "server"
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
@@ -48,12 +59,33 @@ def task_model_module():
     return task_model_stub
 
 
+TESTS_OUTPUT_DIR = APP_ROOT / "tests" / "output"
+
+
 @pytest.fixture(autouse=True)
-def reset_task_service_state(monkeypatch, tmp_path):
+def reset_task_service_state(monkeypatch, tmp_path, request):
+    """Reset the in-memory task store and redirect PROCESS_OUTPUT_DIR.
+
+    - Integration tests (pytest marker 'integration' AND real-model mode):
+      save to app/tests/output/ so the user can inspect the SoM-annotated
+      images, prompts, and model JSON outputs after the run. Each task gets
+      its own <task_uuid> subfolder.
+    - All other tests (unit, service, router, middleware, main): save to
+      pytest's per-test `tmp_path` (auto-cleaned). This preserves the
+      original behaviour that unit tests rely on — several of them
+      hardcode `tmp_path / "output"` as the expected save location.
+    """
     from src.domains.task import service
 
     service._tasks.clear()
-    monkeypatch.setattr(service, "PROCESS_OUTPUT_DIR", tmp_path / "output")
+
+    is_integration = request.node.get_closest_marker("integration") is not None
+    if USE_REAL_TASK_MODEL_TESTS and is_integration:
+        TESTS_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setattr(service, "PROCESS_OUTPUT_DIR", TESTS_OUTPUT_DIR)
+    else:
+        monkeypatch.setattr(service, "PROCESS_OUTPUT_DIR", tmp_path / "output")
+
     yield
     service._tasks.clear()
 
