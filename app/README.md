@@ -41,7 +41,8 @@ sends it to `http://localhost:8010/api/v1/agent/tasks` for local execution.
 The Electron app starts the built local agent automatically and opens the FE in
 one desktop window.
 
-Build the agent executable once from the repo root:
+Build the agent executable once from the repo root. Rebuild it only after
+changing `agent/executor.py` or agent dependencies:
 
 ```bash
 pyenv activate agent
@@ -80,6 +81,31 @@ USE_MOCK_MODEL=1 MOCK_MODEL_ACTION=CLICK MOCK_MODEL_X=100 MOCK_MODEL_Y=100 bash 
 
 To keep returning clicks instead of terminating after the first click, set
 `MOCK_MODEL_TERMINATE_AFTER_CLICK=0`.
+
+### Electron with mock backend
+
+To run the Electron desktop app against the mock backend, use two terminals.
+
+Terminal 1: start the mock backend and keep it running:
+
+```bash
+pyenv activate agent
+bash run.sh server-mock
+```
+
+Terminal 2: build the local agent executable if needed:
+
+```bash
+pyenv activate agent
+poetry run pyinstaller --onefile --name dome-agent agent/executor.py
+```
+
+Then start Electron pointed at the mock backend:
+
+```bash
+cd client
+DOME_BACKEND_URL=http://127.0.0.1:8000 npm run electron:dev
+```
 
 ## Hardware
 
