@@ -12,9 +12,10 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     // Dev: leave empty so Vite proxy at /api/* forwards to VITE_BACKEND_URL.
-    // Prod (static build): VITE_API_URL points at the HF backend directly.
+    // Prod desktop: Electron injects window.config.baseApiUrl at runtime.
+    // Prod static: VITE_API_URL can point at the HF backend directly.
     if (!config.baseURL) {
-      config.baseURL = import.meta.env.VITE_API_URL || "";
+      config.baseURL = import.meta.env.VITE_API_URL || window.config?.baseApiUrl || "";
     }
     return config;
   },

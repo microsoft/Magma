@@ -36,6 +36,51 @@ python app/agent/executor.py --server-url https://wafair-dome.hf.space --port 80
 The web client polls only the task it created, claims that task by ID, then
 sends it to `http://localhost:8010/api/v1/agent/tasks` for local execution.
 
+## Desktop app
+
+The Electron app starts the built local agent automatically and opens the FE in
+one desktop window.
+
+Build the agent executable once from the repo root:
+
+```bash
+pyenv activate agent
+poetry run pyinstaller --onefile --name dome-agent agent/executor.py
+```
+
+Then start the Electron app:
+
+```bash
+cd client
+npm run electron:dev
+```
+
+## Mock model mode
+
+For local development without loading Magma/OmniParser, start the backend with:
+
+```bash
+bash run.sh server-mock
+```
+
+Or start the full local stack in mock mode:
+
+```bash
+bash run.sh all-mock
+```
+
+This sets `USE_MOCK_MODEL=1`, skips model warmup, and returns a mocked `CLICK`
+at a random screenshot coordinate. After one click, it returns `TERMINATE` so
+the task completes cleanly. Override the mock action and coordinate with
+environment variables, for example:
+
+```bash
+USE_MOCK_MODEL=1 MOCK_MODEL_ACTION=CLICK MOCK_MODEL_X=100 MOCK_MODEL_Y=100 bash run.sh server
+```
+
+To keep returning clicks instead of terminating after the first click, set
+`MOCK_MODEL_TERMINATE_AFTER_CLICK=0`.
+
 ## Hardware
 
 - Runs on T4 small (16 GB VRAM) with 4-bit quantization.

@@ -3,11 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite --port 4000",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "generate-routes": "tsr generate"
+    "generate-routes": "tsr generate",
+    "electron:dev": "concurrently -k \"npm run dev -- --host 127.0.0.1\" \"wait-on http://127.0.0.1:4000 && electron .\"",
+    "desktop:build": "npm run build && electron-builder",
+    "desktop:build:mac": "npm run build && electron-builder --mac dmg",
+    "desktop:build:win": "npm run build && electron-builder --win portable"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -31,7 +36,42 @@
     "@tailwindcss/vite": "^4.0.6",
     "@tanstack/router-cli": "^1.130.15",
     "@tanstack/router-plugin": "^1.130.15",
+    "concurrently": "^9.2.1",
+    "electron": "^39.2.4",
+    "electron-builder": "^26.0.12",
     "typescript": "^5.7.2",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "wait-on": "^9.0.3"
+  },
+  "build": {
+    "appId": "com.dome.demo",
+    "productName": "DOME Demo",
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist",
+        "to": "agent",
+        "filter": [
+          "dome-agent",
+          "dome-agent.exe"
+        ]
+      }
+    ],
+    "mac": {
+      "target": "dmg"
+    },
+    "win": {
+      "target": "portable"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }

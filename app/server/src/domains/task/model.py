@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import random
 import re
 from pathlib import Path
 
@@ -30,14 +32,27 @@ logger = logging.getLogger(__name__)
 BASE_MODEL = "microsoft/Magma-8B"
 MODEL_IMAGE_SIZE = 768
 
+USE_MOCK_MODEL = os.environ.get("USE_MOCK_MODEL", "0").lower() in ("1", "true", "yes", "on")
+MOCK_MODEL_ACTION = os.environ.get("MOCK_MODEL_ACTION", "CLICK").upper()
+MOCK_MODEL_VALUE = os.environ.get("MOCK_MODEL_VALUE")
+MOCK_MODEL_X = os.environ.get("MOCK_MODEL_X")
+MOCK_MODEL_Y = os.environ.get("MOCK_MODEL_Y")
+MOCK_MODEL_TERMINATE_AFTER_CLICK = os.environ.get(
+    "MOCK_MODEL_TERMINATE_AFTER_CLICK", "1"
+).lower() in ("1", "true", "yes", "on")
+
 # Checkpoint – will be downloaded from HuggingFace or Google Drive on first run.
 # Override via env var MAGMA_CHECKPOINT_DIR if you have a local copy.
-import os
 
 CHECKPOINT_LOCAL_DIR = Path(
     os.environ.get(
         "MAGMA_CHECKPOINT_DIR",
-        str(Path(__file__).resolve().parents[5] / "checkpoints" / "finetune-3apps-r32-a64-maxlen2560-focal-marks-5actions" / "checkpoint-3300"),
+        str(
+            Path(__file__).resolve().parents[5]
+            / "checkpoints"
+            / "finetune-3apps-r32-a64-maxlen2560-focal-marks-5actions"
+            / "checkpoint-3300"
+        ),
     )
 )
 
@@ -78,12 +93,17 @@ if not hasattr(torch, "_original_sum_backup"):
     def _patched_sum(input, *args, **kwargs):
         if isinstance(input, bool):
             input = torch.tensor(input, dtype=torch.long)
-        elif isinstance(input, torch.Tensor) and input.dtype == torch.bool and (len(args) > 0 or "dim" in kwargs):
+        elif (
+            isinstance(input, torch.Tensor)
+            and input.dtype == torch.bool
+            and (len(args) > 0 or "dim" in kwargs)
+        ):
             input = input.long()
         return torch._original_sum_backup(input, *args, **kwargs)
 
     torch.sum = _patched_sum
     logger.info("Applied torch.sum bool-tensor compatibility patch")
+
 
 # ---------------------------------------------------------------------------
 # Safe weight init patch (from notebook)
@@ -129,7 +149,11 @@ def _download_omniparser_weights() -> None:
         return
     logger.info("Downloading OmniParser-v2.0 weights from HuggingFace …")
     WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
-    snapshot_download(repo_id="microsoft/OmniParser-v2.0", local_dir=str(WEIGHTS_DIR), local_dir_use_symlinks=False)
+    snapshot_download(
+        repo_id="microsoft/OmniParser-v2.0",
+        local_dir=str(WEIGHTS_DIR),
+        local_dir_use_symlinks=False,
+    )
 
 
 def load_yolo() -> YOLO:
@@ -149,7 +173,9 @@ def load_yolo() -> YOLO:
 # ---------------------------------------------------------------------------
 def _has_valid_checkpoint(path: Path) -> bool:
     has_config = (path / "adapter_config.json").exists()
-    has_weights = (path / "adapter_model.safetensors").exists() or (path / "adapter_model.bin").exists()
+    has_weights = (path / "adapter_model.safetensors").exists() or (
+        path / "adapter_model.bin"
+    ).exists()
     return has_config and has_weights
 
 
@@ -194,7 +220,9 @@ def load_magma():
 
     config = AutoConfig.from_pretrained(BASE_MODEL, trust_remote_code=True)
     if hasattr(config, "auto_map") and "AutoModelForCausalLM" in config.auto_map:
-        model_class = get_class_from_dynamic_module(config.auto_map["AutoModelForCausalLM"], BASE_MODEL)
+        model_class = get_class_from_dynamic_module(
+            config.auto_map["AutoModelForCausalLM"], BASE_MODEL
+        )
     else:
         model_class = AutoModelForCausalLM._model_mapping[type(config)]
 
@@ -248,7 +276,9 @@ def load_magma():
     model = PeftModel.from_pretrained(model, str(CHECKPOINT_LOCAL_DIR))
 
     processor = AutoProcessor.from_pretrained(BASE_MODEL, trust_remote_code=True)
-    if hasattr(processor, "image_processor") and hasattr(processor.image_processor, "base_img_size"):
+    if hasattr(processor, "image_processor") and hasattr(
+        processor.image_processor, "base_img_size"
+    ):
         processor.image_processor.base_img_size = MODEL_IMAGE_SIZE
         logger.info(f"Set processor.image_processor.base_img_size={MODEL_IMAGE_SIZE}")
     model.generation_config.pad_token_id = processor.tokenizer.pad_token_id
@@ -263,6 +293,9 @@ def load_magma():
 # Warm-up: call at server startup
 # ---------------------------------------------------------------------------
 def warmup() -> None:
+    if USE_MOCK_MODEL:
+        logger.info("USE_MOCK_MODEL is enabled; skipping model warmup")
+        return
     load_yolo()
     load_magma()
     logger.info("All models warmed up and ready")
@@ -291,6 +324,16 @@ def parse_action(text: str) -> dict:
     return {"raw_response": text, "parse_error": True}
 
 
+def _random_mock_coordinate(axis_size: int) -> int:
+    if axis_size <= 1:
+        return 0
+    low = max(0, int(axis_size * 0.1))
+    high = min(axis_size - 1, int(axis_size * 0.9))
+    if low > high:
+        low, high = 0, axis_size - 1
+    return random.randint(low, high)
+
+
 # ---------------------------------------------------------------------------
 # Inference: screenshot + prompt → predicted action with coordinates
 # ---------------------------------------------------------------------------
@@ -305,6 +348,51 @@ def infer(image: Image.Image, task_prompt: str, previous_actions: str = "None") 
         mark_id  – numeric mark index predicted by model (or None)
         raw_response – raw model text output
     """
+    if USE_MOCK_MODEL:
+        logger.info("USE_MOCK_MODEL is enabled; returning mocked inference response")
+        action = MOCK_MODEL_ACTION
+        if (
+            action == "CLICK"
+            and MOCK_MODEL_TERMINATE_AFTER_CLICK
+            and previous_actions.strip().lower() != "none"
+        ):
+            action = "TERMINATE"
+
+        if action == "CLICK":
+            x = (
+                int(MOCK_MODEL_X)
+                if MOCK_MODEL_X is not None
+                else _random_mock_coordinate(image.width)
+            )
+            y = (
+                int(MOCK_MODEL_Y)
+                if MOCK_MODEL_Y is not None
+                else _random_mock_coordinate(image.height)
+            )
+        else:
+            x = int(MOCK_MODEL_X) if MOCK_MODEL_X is not None else None
+            y = int(MOCK_MODEL_Y) if MOCK_MODEL_Y is not None else None
+
+        raw_response = json.dumps(
+            {
+                "ACTION": action,
+                "MARK": None,
+                "VALUE": MOCK_MODEL_VALUE,
+                "mock": True,
+                "task": task_prompt,
+                "previous_actions": previous_actions,
+            }
+        )
+        return {
+            "action": action,
+            "x": x,
+            "y": y,
+            "value": MOCK_MODEL_VALUE,
+            "mark_id": None,
+            "raw_response": raw_response,
+            "som_image": image.copy(),
+        }
+
     model, processor = load_magma()
     yolo = load_yolo()
 
@@ -323,7 +411,9 @@ def infer(image: Image.Image, task_prompt: str, previous_actions: str = "None") 
         {"role": "system", "content": "You are agent that can see, talk and act."},
         {"role": "user", "content": full_prompt},
     ]
-    formatted_prompt = processor.tokenizer.apply_chat_template(convs, tokenize=False, add_generation_prompt=True)
+    formatted_prompt = processor.tokenizer.apply_chat_template(
+        convs, tokenize=False, add_generation_prompt=True
+    )
 
     if hasattr(model, "config") and getattr(model.config, "mm_use_image_start_end", False):
         formatted_prompt = formatted_prompt.replace("<image>", "<image_start><image><image_end>")
