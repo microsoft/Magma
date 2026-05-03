@@ -46,7 +46,7 @@ changing `agent/executor.py` or agent dependencies:
 
 ```bash
 pyenv activate agent
-poetry run pyinstaller --onefile --name dome-agent agent/executor.py
+poetry run pyinstaller --onedir --name dome-agent --hidden-import pyautogui agent/executor.py
 ```
 
 Then start the Electron app:
@@ -97,7 +97,7 @@ Terminal 2: build the local agent executable if needed:
 
 ```bash
 pyenv activate agent
-poetry run pyinstaller --onefile --name dome-agent agent/executor.py
+poetry run pyinstaller --onedir --name dome-agent --hidden-import pyautogui agent/executor.py
 ```
 
 Then start Electron pointed at the mock backend:

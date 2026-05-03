@@ -56,12 +56,8 @@
     ],
     "extraResources": [
       {
-        "from": "../dist",
-        "to": "agent",
-        "filter": [
-          "dome-agent",
-          "dome-agent.exe"
-        ]
+        "from": "../dist/dome-agent",
+        "to": "agent/dome-agent"
       }
     ],
     "mac": {

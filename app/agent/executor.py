@@ -23,7 +23,6 @@ import threading
 import time
 
 import httpx
-import pyautogui
 import uvicorn
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,11 +34,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger("agent")
 
-# PyAutoGUI safety settings
-pyautogui.FAILSAFE = True  # Move mouse to corner to abort
-pyautogui.PAUSE = 0.5  # Pause between actions
-
 HTTP_TIMEOUT = httpx.Timeout(300.0, connect=30.0)
+_pyautogui = None
+
+
+def get_pyautogui():
+    """Load PyAutoGUI only when a task actually needs desktop control."""
+    global _pyautogui
+    if _pyautogui is None:
+        import pyautogui
+
+        pyautogui.FAILSAFE = True  # Move mouse to corner to abort
+        pyautogui.PAUSE = 0.5  # Pause between actions
+        _pyautogui = pyautogui
+    return _pyautogui
 
 
 class AgentTask(BaseModel):
@@ -60,6 +68,7 @@ class SuccessResponse(BaseModel):
 
 def take_screenshot_base64() -> str:
     """Capture the screen and return as base64 string."""
+    pyautogui = get_pyautogui()
     screenshot = pyautogui.screenshot()
     buffer = io.BytesIO()
     screenshot.save(buffer, format="PNG")
@@ -68,6 +77,7 @@ def take_screenshot_base64() -> str:
 
 def execute_action(action: dict) -> None:
     """Execute a PyAutoGUI action from the server response."""
+    pyautogui = get_pyautogui()
     action_type = action["action_type"]
     params = action.get("parameters", {})
     description = action.get("description", "")

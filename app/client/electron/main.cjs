@@ -1,5 +1,6 @@
 const { app, BrowserWindow } = require("electron");
 const { spawn } = require("child_process");
+const fs = require("fs");
 const http = require("http");
 const path = require("path");
 
@@ -27,10 +28,20 @@ function getAgentExecutableName() {
 
 function getAgentPath() {
   const executable = getAgentExecutableName();
-  if (app.isPackaged) {
-    return path.join(process.resourcesPath, "agent", executable);
-  }
-  return path.resolve(__dirname, "..", "..", "dist", executable);
+  const candidates = app.isPackaged
+    ? [
+        path.join(process.resourcesPath, "agent", "dome-agent", executable),
+        path.join(process.resourcesPath, "agent", executable),
+      ]
+    : [
+        path.resolve(__dirname, "..", "..", "dist", "dome-agent", executable),
+        path.resolve(__dirname, "..", "..", "dist", executable),
+      ];
+
+  const existingPath = candidates.find((candidate) => fs.existsSync(candidate));
+  if (existingPath) return existingPath;
+
+  return candidates[0];
 }
 
 function checkAgentHealth(timeoutMs = 1000) {
