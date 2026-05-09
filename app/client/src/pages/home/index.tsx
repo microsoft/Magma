@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Button,
   Card,
@@ -10,6 +10,7 @@ import {
   Alert,
   Timeline,
   Spin,
+  notification,
 } from "antd";
 import {
   PlayCircleOutlined,
@@ -25,6 +26,70 @@ import { useTasksQuery } from "../../services/task.query";
 import { useDeleteTaskMutation } from "../../services/task.mutation";
 import type { Task, TaskStatus } from "../../types/task";
 
+const TERMINAL_TASK_FEEDBACK: Record<
+  Extract<TaskStatus, "done" | "failed" | "cancelled">,
+  {
+    alertType: "success" | "error" | "warning";
+    bannerLabel: string;
+    description: string;
+    notificationTitle: string;
+  }
+> = {
+  done: {
+    alertType: "success",
+    bannerLabel: "completed",
+    description: "The automation finished successfully.",
+    notificationTitle: "Task completed",
+  },
+  failed: {
+    alertType: "error",
+    bannerLabel: "failed",
+    description: "The automation could not finish successfully.",
+    notificationTitle: "Task failed",
+  },
+  cancelled: {
+    alertType: "warning",
+    bannerLabel: "cancelled",
+    description: "The automation was stopped before finishing.",
+    notificationTitle: "Task cancelled",
+  },
+};
+
+const getDesktopNotification = () => {
+  if (typeof window === "undefined" || !("Notification" in window)) return null;
+  return window.Notification;
+};
+
+const requestDesktopNotificationPermission = async () => {
+  const NotificationConstructor = getDesktopNotification();
+  if (!NotificationConstructor || NotificationConstructor.permission !== "default") return;
+
+  try {
+    await NotificationConstructor.requestPermission();
+  } catch {
+    // Keep the in-app notification as the fallback.
+  }
+};
+
+const showDesktopNotification = (title: string, body: string, tag: string) => {
+  const NotificationConstructor = getDesktopNotification();
+  if (!NotificationConstructor || NotificationConstructor.permission !== "granted") return;
+
+  try {
+    const desktopNotification = new NotificationConstructor(title, {
+      body,
+      tag,
+    });
+
+    desktopNotification.onclick = () => {
+      window.focus();
+      desktopNotification.close();
+    };
+  } catch {
+    // Keep the in-app notification as the fallback.
+  }
+};
+
 const ActionLogCard = styled(Card)`
   .ant-card-body {
     max-height: 400px;
@@ -34,12 +99,40 @@ const ActionLogCard = styled(Card)`
 
 export const HomePage: FC = () => {
   const [prompt, setPrompt] = useState("");
+  const [notificationApi, notificationContext] = notification.useNotification();
+  const alertedTerminalStateRef = useRef<string | null>(null);
   const { isRunning, stepLogs, activeTaskId, finalStatus, startTask, stopTask } =
     useTaskRunner();
   const { data: tasks = [], isLoading: tasksLoading } = useTasksQuery();
   const deleteMutation = useDeleteTaskMutation();
+  const terminalFeedback =
+    finalStatus === "done" || finalStatus === "failed" || finalStatus === "cancelled"
+      ? TERMINAL_TASK_FEEDBACK[finalStatus]
+      : null;
 
-  const handleStart = () => {
+  useEffect(() => {
+    if (!terminalFeedback || !finalStatus) return;
+
+    const alertKey = `${activeTaskId ?? "current"}:${finalStatus}`;
+    if (alertedTerminalStateRef.current === alertKey) return;
+    alertedTerminalStateRef.current = alertKey;
+
+    notificationApi[terminalFeedback.alertType]({
+      key: alertKey,
+      message: terminalFeedback.notificationTitle,
+      description: `${terminalFeedback.description} ${stepLogs.length} step(s) executed.`,
+      placement: "topRight",
+    });
+
+    showDesktopNotification(
+      terminalFeedback.notificationTitle,
+      `${terminalFeedback.description} ${stepLogs.length} step(s) executed.`,
+      alertKey
+    );
+  }, [activeTaskId, finalStatus, notificationApi, stepLogs.length, terminalFeedback]);
+
+  const handleStart = async () => {
+    await requestDesktopNotificationPermission();
     startTask(prompt);
   };
 
@@ -91,6 +184,8 @@ export const HomePage: FC = () => {
       title="UI Automation"
       subtitle="Enter a prompt. This client claims its task, sends it to the local agent, and tracks PyAutoGUI execution."
     >
+      {notificationContext}
+
       {/* Prompt input */}
       <Card className="mb-4">
         <Space.Compact style={{ width: "100%" }}>
@@ -144,10 +239,11 @@ export const HomePage: FC = () => {
       )}
 
       {/* Completion banner */}
-      {!isRunning && finalStatus && stepLogs.length > 0 && (
+      {!isRunning && terminalFeedback && (
         <Alert
-          type={finalStatus === "done" ? "success" : "warning"}
-          message={`Task ${finalStatus === "done" ? "completed" : "stopped"} — ${stepLogs.length} step(s) executed`}
+          type={terminalFeedback.alertType}
+          message={`Task ${terminalFeedback.bannerLabel} — ${stepLogs.length} step(s) executed`}
+          description={terminalFeedback.description}
           className="mb-4"
           closable
         />

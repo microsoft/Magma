@@ -13,7 +13,7 @@ interface TaskStore {
   activeTaskId: string | null;
   isRunning: boolean;
   stepLogs: StepLog[];
-  finalStatus: string | null;
+  finalStatus: TaskStatus | null;
 }
 
 export const taskStore = new Store<TaskStore>({
